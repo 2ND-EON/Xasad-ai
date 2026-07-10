@@ -1,4 +1,4 @@
-name = "xasad-brain"
+name = "xasad-ai"
 main = "backend/src/index.js"
 compatibility_date = "2024-03-01"
 
@@ -9,7 +9,7 @@ ENVIRONMENT = "production"
 [[d1_databases]]
 binding = "XASAD_D1"
 database_name = "xasad_production_db"
-database_id = "YOUR_CLOUDFLARE_D1_DATABASE_UUID_HERE"
+database_id = "bed01954-6b3a-4ff6-a07e-16a35a685228"
 
 # Note: Sensitive variables like PAYPAL_SECRET_KEY must be added via
 # CloudFlare Dashboard or encrypted using: wrangler secret put PAYPAL_SECRET_KEY
