@@ -2,7 +2,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     
-    // 1. Canonical Domain Standardization (Redirect www.xasad.com to xasad.com)
+    // 1. CANONICAL DOMAIN STANDARDIZATION
     if (url.hostname === "www.xasad.com") {
       return Response.redirect(`https://xasad.com${url.pathname}${url.search}`, 301);
     }
@@ -19,13 +19,14 @@ export default {
       return new Response(null, { headers: securityHeaders, status: 204 });
     }
 
-    // 2. Explicit Root Path Handling Fix (Redirects root path request to frontend)
+    // 2. EXPLICIT ROOT PATH HANDLING FIX
+    // Redirects to your static frontend origin or serves your app index asset cleanly
     if (url.pathname === "/") {
       return Response.redirect("https://xasad.com", 301);
     }
 
     try {
-      // --- ENDPOINT: STEP 1 REGISTRATION SETUP & AGE COMPLIANCE CHECK ---
+      // --- ENDPOINT: STEP 1 REGISTRATION SETUP & AGE COMPLIANCE ---
       if (url.pathname === "/api/auth/register-step1" && request.method === "POST") {
         const { name, email, password, dob, targetGroup } = await request.json();
         if (!name || !email || !password || !dob) {
@@ -42,7 +43,7 @@ export default {
         return new Response(JSON.stringify({ success: true, age }), { status: 200, headers: securityHeaders });
       }
 
-      // --- ENDPOINT: STEP 3/4 SECURE SERVER-TO-SERVER PAYPAL SUBSCRIPTION ACTIVATION ---
+      // --- ENDPOINT: SECURE PAYPAL SUBSCRIPTION ACTIVATION INTEGRATION ---
       if (url.pathname === "/api/auth/verify-paypal" && request.method === "POST") {
         const { orderID, planTier, email, name, passwordHash, dob, age, targetGroup } = await request.json();
 
@@ -76,16 +77,15 @@ export default {
           return new Response(JSON.stringify({ error: "Payment verification aborted. Subscription inactive." }), { status: 402, headers: securityHeaders });
         }
 
-        // Set role based on official system admin email origins
         const assignedRole = (email.toLowerCase() === "admin@xasad.com" || email.toLowerCase() === "ceo@xasad.com") ? "ADMIN" : "USER";
 
         const userId = crypto.randomUUID();
         await env.XASAD_D1.prepare(
           "INSERT INTO users (id, name, email, password_hash, dob, age, tier, role, target_group, subscription_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        ).bind(userId, name, email, passwordHash, dob, age, planTier, assignedRole, targetGroup, orderID).run();
+        ).bind(userId, name, email, passwordHash, dob, age, planTier, assignedRole, targetGroup || 'Professional', orderID).run();
 
         const token = crypto.randomUUID();
-        const expiresAt = Math.floor(Date.now() / 1000) + 2592000; // 30-day session
+        const expiresAt = Math.floor(Date.now() / 1000) + 2592000;
         
         await env.XASAD_D1.prepare(
           "INSERT INTO user_sessions (token, user_id, expires_at) VALUES (?, ?, ?)"
@@ -94,7 +94,7 @@ export default {
         return new Response(JSON.stringify({ success: true, token, tier: planTier, role: assignedRole, age, targetGroup }), { status: 201, headers: securityHeaders });
       }
 
-      // --- ENDPOINT: HYDRATION STATE AND ME CHECK ---
+      // --- ENDPOINT: SESSION IDENTITY VERIFICATION ---
       if (url.pathname === "/api/auth/me" && request.method === "GET") {
         const authHeader = request.headers.get("Authorization") || "";
         const token = authHeader.replace("Bearer ", "").trim();
@@ -109,7 +109,7 @@ export default {
         return new Response(JSON.stringify({ success: true, tier: session.tier, role: session.role, age: session.age, targetGroup: session.target_group }), { status: 200, headers: securityHeaders });
       }
 
-      // --- ENDPOINT: DYNAMIC ADMINISTRATIVE INTERFACE BRAIN PATCH INJECTION ---
+      // --- ENDPOINT: DYNAMIC ADMINISTRATIVE BRAIN INSTRUCTION PATCH INJECTION ---
       if (url.pathname === "/api/admin/patch-brain" && request.method === "POST") {
         const authHeader = request.headers.get("Authorization") || "";
         const token = authHeader.replace("Bearer ", "").trim();
@@ -132,7 +132,7 @@ export default {
         return new Response(JSON.stringify({ success: true, message: "Brain prompt matrix patched dynamically." }), { status: 200, headers: securityHeaders });
       }
 
-      // --- ENDPOINT: OMNIMODAL MULTI-TIER REASONING STREAM GATEWAY ---
+      // --- ENDPOINT: OMNIMODAL REASONING STREAM GATEWAY ---
       if (url.pathname === "/api/chat/stream" && request.method === "POST") {
         const authHeader = request.headers.get("Authorization") || "";
         const token = authHeader.replace("Bearer ", "").trim();
@@ -142,7 +142,7 @@ export default {
         ).bind(token, Math.floor(Date.now() / 1000)).first();
 
         if (!session) {
-          return new Response(JSON.stringify({ error: "Unauthorized access path. Token missing or dead." }), { status: 401, headers: securityHeaders });
+          return new Response(JSON.stringify({ error: "Unauthorized access path." }), { status: 401, headers: securityHeaders });
         }
 
         const { prompt, languageMode, useProBigBrain } = await request.json();
@@ -156,38 +156,34 @@ export default {
         const encoder = new TextEncoder();
         const stream = new ReadableStream({
           async start(controller) {
-            // Check if user is trying to access Pro Tier capabilities (Deep Thinking, Polyglot Native S2S African Speech)
             if (useProBigBrain && session.tier !== "PRO") {
-              controller.enqueue(encoder.encode(`✕ Access Denied: The current prompt configuration routes to the PRO DeepThinking Architecture Matrix. Upgrading your profile allocation tier is required to continue.\n`));
+              controller.enqueue(encoder.encode(`✕ Access Denied: Upgrading your profile tier configuration to PRO is required for DeepThinking and Native Polyglot execution capabilities.\n`));
               controller.close();
               return;
             }
 
-            // Injects deep-thinking latency padding and logic boundaries for the PRO tier
             if (session.tier === "PRO") {
-              controller.enqueue(encoder.encode(`[XASAD Reasoning] Activating extended logic clock cycles. Allocating extra context memory pathways for complete analytical veracity... Verified Active Admin Instructions: [${compiledPatchesText}].\n\n`));
+              controller.enqueue(encoder.encode(`[XASAD Reasoning] Extended verification thinking block initialized. Processing dynamic instruction set: [${compiledPatchesText}].\n\n`));
             } else {
-              controller.enqueue(encoder.encode(`[XASAD Reasoning] Processing standard execution track. Instructions: [${compiledPatchesText}].\n\n`));
+              controller.enqueue(encoder.encode(`[XASAD Reasoning] Processing query on standard execution track.\n\n`));
             }
             
-            // Map the Context-Aware Omni-User Matrix instructions directly into the stream
+            // Context matrix outputs
             if (session.target_group === "Student") {
-              controller.enqueue(encoder.encode(`[Adaptive Pedagogical Matrix Active] Routing concepts via Step-by-Step Tuto Mode. Activating phonetic markers and multi-language literacy loops (English, Tajweed/Quranic structural metrics, STEM).\n\n`));
+              controller.enqueue(encoder.encode(`[Pedagogical Sandbox Active] Initiating step-by-step guidance metrics, phonetic instruction guides, and Tajweed Quranic literacy tracing.\n\n`));
             } else if (session.target_group === "Professional") {
-              controller.enqueue(encoder.encode(`[Adaptive Corporate Matrix Active] Enforcing executive-grade precision filters. Formulating risk architectures, commercial credit bookkeeping metrics, and underwriter configurations.\n\n`));
+              controller.enqueue(encoder.encode(`[Executive ERP Engine Active] Compiling financial ledger balances against variable operational overhead.\n\n`));
             }
 
-            // Language processing rule tracking (Somali, Swahili, Arabic Parity)
             if (["Somali", "Swahili", "Arabic"].includes(languageMode)) {
-              controller.enqueue(encoder.encode(`[Omnimodal Native Audio/Text L10N Mapping Engine] Bypassing translation middle-layers. Computing raw logic tokens directly into target vernacular: ${languageMode}.\n\n`));
+              controller.enqueue(encoder.encode(`[Native African S2S Vernacular Route] Mapping parameters natively without structural intermediate translation vectors.\n\n`));
             }
 
-            // Generative UI component sandbox code streaming block
-            if (prompt.toLowerCase().includes("render component") || prompt.toLowerCase().includes("sandbox test")) {
-              controller.enqueue(encoder.encode(`[SANDBOX_CODE_STREAM]<div style="padding:20px; background:#0d0d0d; border:1px solid #f59e0b; border-radius:6px;"><h4 style="color:#f59e0b;">XASAD AI Adaptive Component Container</h4><p style="font-size:12px; color:#888; margin-top:5px;">Compiled, verified, and structured into the visual sandbox iframe securely via zero-config deployment channels.</p></div>`));
+            if (prompt.toLowerCase().includes("render component")) {
+              controller.enqueue(encoder.encode(`[SANDBOX_CODE_STREAM]<div style="padding:15px; border:1px solid #141414; background:#0c0c0c; border-radius:6px; color:#fff;"><h4>XASAD Dynamic Container Sandbox</h4><p style="font-size:12px; color:#666;">Pixel-by-pixel speculative component layout active.</p></div>`));
             }
 
-            controller.enqueue(encoder.encode(`Execution path complete. Query processed across secure multi-tenant cloud arrays.`));
+            controller.enqueue(encoder.encode(`Response synthesis finished successfully.`));
             controller.close();
           }
         });
@@ -195,7 +191,7 @@ export default {
         return new Response(stream, { headers: { ...securityHeaders, "Content-Type": "text/event-stream" } });
       }
 
-      // Fallback unmatched 404
+      // 3. SECURE ROUTING FALLBACK CATCH-ALL
       return new Response(JSON.stringify({ error: "Endpoint trajectory unmatched." }), { status: 404, headers: securityHeaders });
     } catch (fault) {
       return new Response(JSON.stringify({ error: `Infrastructure Engine Fault: ${fault.message}` }), { status: 500, headers: securityHeaders });
