@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Local Environment Secrets (Never commit these!)
+.env
+.env.local
+.env.production
+.dev.vars
+
+# Build outputs
+dist/
+.wrangler/
+build/
