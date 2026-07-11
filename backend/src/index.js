@@ -19,11 +19,6 @@ export default {
       return new Response(null, { headers: securityHeaders, status: 204 });
     }
 
-    // 2. EXPLICIT ROOT PATH HANDLING FIX
-    // Redirects to your static frontend origin or serves your app index asset cleanly
-    if (url.pathname === "/") {
-      return Response.redirect("https://xasad.com", 301);
-    }
 
     try {
       // --- ENDPOINT: STEP 1 REGISTRATION SETUP & AGE COMPLIANCE ---
