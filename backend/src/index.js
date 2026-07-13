@@ -1,8 +1,16 @@
-export default {
+// backend/src/index.js
+var index_default = {
   async fetch(request, env) {
     const url = new URL(request.url);
-    
-    // 1. CANONICAL DOMAIN STANDARDIZATION
+
+    if (url.pathname.startsWith("/admin")) {
+      const authHeader = request.headers.get("Authorization");
+      const adminEmails = ["admin@xasad.com", "ceo@xasad.com", "asadenjune@proton.me"];
+      if (!authHeader || !adminEmails.some(email => authHeader.includes(email))) {
+        return new Response(JSON.stringify({ error: "Access Denied: Admin privileges required." }), { status: 403, headers: { "Content-Type": "application/json" } });
+      }
+    }
+
     if (url.hostname === "www.xasad.com") {
       return Response.redirect(`https://xasad.com${url.pathname}${url.search}`, 301);
     }
@@ -19,177 +27,114 @@ export default {
       return new Response(null, { headers: securityHeaders, status: 204 });
     }
 
-
     try {
-      // --- ENDPOINT: STEP 1 REGISTRATION SETUP & AGE COMPLIANCE ---
       if (url.pathname === "/api/auth/register-step1" && request.method === "POST") {
         const { name, email, password, dob, targetGroup } = await request.json();
         if (!name || !email || !password || !dob) {
           return new Response(JSON.stringify({ error: "Missing identity requirements." }), { status: 400, headers: securityHeaders });
         }
-        
         const birthYear = new Date(dob).getFullYear();
         const currentYear = new Date().getFullYear();
         const age = currentYear - birthYear;
-        
         if (age < 13) {
-          return new Response(JSON.stringify({ error: "Access denied. Minimum registration age is 13." }), { status: 400, headers: securityHeaders });
+          return new Response(JSON.stringify({ error: "Access denied. Minimum registration age is 13." }), { status: 403, headers: securityHeaders });
         }
         return new Response(JSON.stringify({ success: true, age }), { status: 200, headers: securityHeaders });
       }
 
-      // --- ENDPOINT: SECURE PAYPAL SUBSCRIPTION ACTIVATION INTEGRATION ---
+      if (url.pathname === "/api/chat" && request.method === "POST") {
+        const { message } = await request.json();
+        return new Response(JSON.stringify({ success: true, reply: "XASAD Brain Connected Successfully." }), { headers: securityHeaders, status: 200 });
+      }
+
       if (url.pathname === "/api/auth/verify-paypal" && request.method === "POST") {
         const { orderID, planTier, email, name, passwordHash, dob, age, targetGroup } = await request.json();
-
         const paypalEndpoint = `https://api-m.paypal.com/v1/billing/subscriptions/${orderID}`;
-        const clientID = env.PAYPAL_CLIENT_ID;
+        const clientId = env.PAYPAL_CLIENT_ID;
         const clientSecret = env.PAYPAL_SECRET_KEY;
-        const tokenAuth = btoa(`${clientID}:${clientSecret}`);
-        
+        const tokenAuth = btoa(`${clientId}:${clientSecret}`);
         const oauthRes = await fetch("https://api-m.paypal.com/v1/oauth2/token", {
           method: "POST",
           headers: { "Authorization": `Basic ${tokenAuth}`, "Content-Type": "application/x-www-form-urlencoded" },
           body: "grant_type=client_credentials"
         });
-
         if (!oauthRes.ok) {
           return new Response(JSON.stringify({ error: "PayPal authentication handshake dropped." }), { status: 401, headers: securityHeaders });
         }
         const { access_token } = await oauthRes.json();
-
         const subscriptionVerify = await fetch(paypalEndpoint, {
           method: "GET",
           headers: { "Authorization": `Bearer ${access_token}`, "Content-Type": "application/json" }
         });
-
         if (!subscriptionVerify.ok) {
-          return new Response(JSON.stringify({ error: "Subscription verification failed on secure gateway." }), { status: 402, headers: securityHeaders });
+          return new Response(JSON.stringify({ error: "Subscription verification failed on secure gate." }), { status: 400, headers: securityHeaders });
         }
-
         const subData = await subscriptionVerify.json();
         if (subData.status !== "ACTIVE" && subData.status !== "APPROVED") {
           return new Response(JSON.stringify({ error: "Payment verification aborted. Subscription inactive." }), { status: 402, headers: securityHeaders });
         }
-
-        const assignedRole = (email.toLowerCase() === "admin@xasad.com" || email.toLowerCase() === "ceo@xasad.com") ? "ADMIN" : "USER";
-
+        const adminEmails = ["admin@xasad.com", "ceo@xasad.com", "asadenjune@proton.me"];
+        const assignedRole = adminEmails.includes(email.toLowerCase()) ? "admin" : "user";
         const userId = crypto.randomUUID();
-        await env.XASAD_D1.prepare(
-          "INSERT INTO users (id, name, email, password_hash, dob, age, tier, role, target_group, subscription_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        ).bind(userId, name, email, passwordHash, dob, age, planTier, assignedRole, targetGroup || 'Professional', orderID).run();
-
-        const token = crypto.randomUUID();
-        const expiresAt = Math.floor(Date.now() / 1000) + 2592000;
-        
-        await env.XASAD_D1.prepare(
-          "INSERT INTO user_sessions (token, user_id, expires_at) VALUES (?, ?, ?)"
-        ).bind(token, userId, expiresAt).run();
-
-        return new Response(JSON.stringify({ success: true, token, tier: planTier, role: assignedRole, age, targetGroup }), { status: 201, headers: securityHeaders });
+        await env.XASAD_DB.prepare(
+          "INSERT INTO users (id, name, email, password_hash, dob, age, target_group, subscription_status, role, paypal_subscription_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        ).bind(userId, name, email, passwordHash, dob, age, targetGroup, subData.status, assignedRole, orderID).run();
+        return new Response(JSON.stringify({ success: true, token: userId, role: assignedRole }), { status: 200, headers: securityHeaders });
       }
 
-      // --- ENDPOINT: SESSION IDENTITY VERIFICATION ---
-      if (url.pathname === "/api/auth/me" && request.method === "GET") {
-        const authHeader = request.headers.get("Authorization") || "";
-        const token = authHeader.replace("Bearer ", "").trim();
-
-        const session = await env.XASAD_D1.prepare(
-          "SELECT s.*, u.tier, u.role, u.age, u.target_group FROM user_sessions s JOIN users u ON s.user_id = u.id WHERE s.token = ? AND s.expires_at > ?"
-        ).bind(token, Math.floor(Date.now() / 1000)).first();
-
-        if (!session) {
-          return new Response(JSON.stringify({ error: "Session non-existent or expired." }), { status: 401, headers: securityHeaders });
+      if (url.pathname === "/api/auth/login" && request.method === "POST") {
+        const { email, password } = await request.json();
+        if (!email || !password) {
+          return new Response(JSON.stringify({ error: "Missing email or password." }), { status: 400, headers: securityHeaders });
         }
-        return new Response(JSON.stringify({ success: true, tier: session.tier, role: session.role, age: session.age, targetGroup: session.target_group }), { status: 200, headers: securityHeaders });
-      }
-
-      // --- ENDPOINT: DYNAMIC ADMINISTRATIVE BRAIN INSTRUCTION PATCH INJECTION ---
-      if (url.pathname === "/api/admin/patch-brain" && request.method === "POST") {
-        const authHeader = request.headers.get("Authorization") || "";
-        const token = authHeader.replace("Bearer ", "").trim();
-
-        const session = await env.XASAD_D1.prepare(
-          "SELECT s.*, u.role FROM user_sessions s JOIN users u ON s.user_id = u.id WHERE s.token = ? AND u.role = 'ADMIN'"
-        ).bind(token).first();
-
-        if (!session) {
-          return new Response(JSON.stringify({ error: "Access Denied: Administrative authority required." }), { status: 403, headers: securityHeaders });
-        }
-
-        const { operationalPatch } = await request.json();
-        const patchId = crypto.randomUUID();
-        
-        await env.XASAD_D1.prepare(
-          "INSERT INTO system_patches (id, patch_instruction, created_at) VALUES (?, ?, ?)"
-        ).bind(patchId, operationalPatch, Math.floor(Date.now() / 1000)).run();
-
-        return new Response(JSON.stringify({ success: true, message: "Brain prompt matrix patched dynamically." }), { status: 200, headers: securityHeaders });
-      }
-
-      // --- ENDPOINT: OMNIMODAL REASONING STREAM GATEWAY ---
-      if (url.pathname === "/api/chat/stream" && request.method === "POST") {
-        const authHeader = request.headers.get("Authorization") || "";
-        const token = authHeader.replace("Bearer ", "").trim();
-
-        const session = await env.XASAD_D1.prepare(
-          "SELECT s.*, u.tier, u.role, u.target_group FROM user_sessions s JOIN users u ON s.user_id = u.id WHERE s.token = ? AND s.expires_at > ?"
-        ).bind(token, Math.floor(Date.now() / 1000)).first();
-
-        if (!session) {
-          return new Response(JSON.stringify({ error: "Unauthorized access path." }), { status: 401, headers: securityHeaders });
-        }
-
-        const { prompt, languageMode, useProBigBrain } = await request.json();
-
-        // Fetch user-pushed instructions from the Admin dynamic interface
-        const activePatches = await env.XASAD_D1.prepare(
-          "SELECT patch_instruction FROM system_patches ORDER BY created_at DESC LIMIT 5"
-        ).all();
-        let compiledPatchesText = activePatches.results ? activePatches.results.map(r => r.patch_instruction).join(" | ") : "None";
-
         const encoder = new TextEncoder();
-        const stream = new ReadableStream({
-          async start(controller) {
-            if (useProBigBrain && session.tier !== "PRO") {
-              controller.enqueue(encoder.encode(`✕ Access Denied: Upgrading your profile tier configuration to PRO is required for DeepThinking and Native Polyglot execution capabilities.\n`));
-              controller.close();
-              return;
-            }
-
-            if (session.tier === "PRO") {
-              controller.enqueue(encoder.encode(`[XASAD Reasoning] Extended verification thinking block initialized. Processing dynamic instruction set: [${compiledPatchesText}].\n\n`));
-            } else {
-              controller.enqueue(encoder.encode(`[XASAD Reasoning] Processing query on standard execution track.\n\n`));
-            }
-            
-            // Context matrix outputs
-            if (session.target_group === "Student") {
-              controller.enqueue(encoder.encode(`[Pedagogical Sandbox Active] Initiating step-by-step guidance metrics, phonetic instruction guides, and Tajweed Quranic literacy tracing.\n\n`));
-            } else if (session.target_group === "Professional") {
-              controller.enqueue(encoder.encode(`[Executive ERP Engine Active] Compiling financial ledger balances against variable operational overhead.\n\n`));
-            }
-
-            if (["Somali", "Swahili", "Arabic"].includes(languageMode)) {
-              controller.enqueue(encoder.encode(`[Native African S2S Vernacular Route] Mapping parameters natively without structural intermediate translation vectors.\n\n`));
-            }
-
-            if (prompt.toLowerCase().includes("render component")) {
-              controller.enqueue(encoder.encode(`[SANDBOX_CODE_STREAM]<div style="padding:15px; border:1px solid #141414; background:#0c0c0c; border-radius:6px; color:#fff;"><h4>XASAD Dynamic Container Sandbox</h4><p style="font-size:12px; color:#666;">Pixel-by-pixel speculative component layout active.</p></div>`));
-            }
-
-            controller.enqueue(encoder.encode(`Response synthesis finished successfully.`));
-            controller.close();
-          }
-        });
-
-        return new Response(stream, { headers: { ...securityHeaders, "Content-Type": "text/event-stream" } });
+        const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(password));
+        const passwordHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, "0")).join("");
+        const user = await env.XASAD_DB.prepare("SELECT * FROM users WHERE email = ? AND password_hash = ?").bind(email, passwordHash).first();
+        if (!user) {
+          return new Response(JSON.stringify({ error: "Invalid credentials." }), { status: 401, headers: securityHeaders });
+        }
+        const activeStates = ["ACTIVE", "APPROVED"];
+        if (!activeStates.includes(user.subscription_status)) {
+          const payload = { userId: user.id, exp: Date.now() + 10 * 60 * 1000 };
+          const data = btoa(JSON.stringify(payload));
+          const key = await crypto.subtle.importKey("raw", encoder.encode(env.JWT_SECRET), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+          const sig = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
+          const sigHex = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, "0")).join("");
+          const reactivateToken = `${data}.${sigHex}`;
+          return new Response(JSON.stringify({ error: "SUBSCRIPTION_INACTIVE", message: "Approve payment to activate your account", reactivateToken }), { status: 402, headers: securityHeaders });
+        }
+        return new Response(JSON.stringify({ success: true, token: user.id, name: user.name, role: user.role }), { status: 200, headers: securityHeaders });
       }
 
-      // 3. SECURE ROUTING FALLBACK CATCH-ALL
+      if (url.pathname === "/api/auth/reactivate" && request.method === "POST") {
+        const { reactivateToken } = await request.json();
+        const [data, sigHex] = (reactivateToken || "").split(".");
+        if (!data || !sigHex) {
+          return new Response(JSON.stringify({ error: "Invalid token." }), { status: 401, headers: securityHeaders });
+        }
+        const encoder = new TextEncoder();
+        const key = await crypto.subtle.importKey("raw", encoder.encode(env.JWT_SECRET), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+        const expectedSig = await crypto.subtle.sign("HMAC", key, encoder.encode(data));
+        const expectedHex = Array.from(new Uint8Array(expectedSig)).map(b => b.toString(16).padStart(2, "0")).join("");
+        if (expectedHex !== sigHex) {
+          return new Response(JSON.stringify({ error: "Invalid token." }), { status: 401, headers: securityHeaders });
+        }
+        const payload = JSON.parse(atob(data));
+        if (payload.exp && Date.now() > payload.exp) {
+          return new Response(JSON.stringify({ error: "Token expired." }), { status: 401, headers: securityHeaders });
+        }
+        const user = await env.XASAD_DB.prepare("SELECT * FROM users WHERE id = ?").bind(payload.userId).first();
+        if (!user) {
+          return new Response(JSON.stringify({ error: "User not found." }), { status: 404, headers: securityHeaders });
+        }
+        return new Response(JSON.stringify({ action: "checkout_required", email: user.email, name: user.name }), { status: 200, headers: securityHeaders });
+      }
+
       return new Response(JSON.stringify({ error: "Endpoint trajectory unmatched." }), { status: 404, headers: securityHeaders });
-    } catch (fault) {
-      return new Response(JSON.stringify({ error: `Infrastructure Engine Fault: ${fault.message}` }), { status: 500, headers: securityHeaders });
+    } catch (err) {
+      return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: securityHeaders });
     }
   }
 };
+export { index_default as default };
