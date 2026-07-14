@@ -94,8 +94,10 @@ var index_default = {
         if (!user) {
           return new Response(JSON.stringify({ error: "Invalid credentials." }), { status: 401, headers: securityHeaders });
         }
+        const adminEmails = ["admin@xasad.com", "ceo@xasad.com", "asadenjune@proton.me"];
+        const isAdmin = adminEmails.includes(user.email.toLowerCase());
         const activeStates = ["ACTIVE", "APPROVED"];
-        if (!activeStates.includes(user.subscription_status)) {
+        if (!isAdmin && !activeStates.includes(user.subscription_status)) {
           const payload = { userId: user.id, exp: Date.now() + 10 * 60 * 1000 };
           const data = btoa(JSON.stringify(payload));
           const key = await crypto.subtle.importKey("raw", encoder.encode(env.JWT_SECRET), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
