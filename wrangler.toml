@@ -11,5 +11,9 @@ binding = "XASAD_D1"
 database_name = "xasad_production_db"
 database_id = "bed01954-6b3a-4ff6-a07e-16a35a685228"
 
+[[d1_databases]]
+binding = "XASAD_DB"
+database_name = "xasad_production_db"
+database_id = "bed01954-6b3a-4ff6-a07e-16a35a685228"
 # Note: Sensitive variables like PAYPAL_SECRET_KEY must be added via
 # CloudFlare Dashboard or encrypted using: wrangler secret put PAYPAL_SECRET_KEY
