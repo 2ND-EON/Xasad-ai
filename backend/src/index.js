@@ -43,7 +43,20 @@ var index_default = {
 
       if (url.pathname === "/api/chat" && request.method === "POST") {
         const { message } = await request.json();
-        return new Response(JSON.stringify({ success: true, reply: "XASAD Brain Connected Successfully." }), { headers: securityHeaders, status: 200 });
+        if (!message) {
+          return new Response(JSON.stringify({ error: "Message is required." }), { status: 400, headers: securityHeaders });
+        }
+        try {
+          const aiResponse = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
+            messages: [
+              { role: "system", content: "You are XASAD Brain, a multilingual AI assistant fluent in Somali, Swahili, Arabic, and English. Be helpful, clear, and concise." },
+              { role: "user", content: message }
+            ]
+          });
+          return new Response(JSON.stringify({ success: true, reply: aiResponse.response }), { headers: securityHeaders, status: 200 });
+        } catch (aiError) {
+          return new Response(JSON.stringify({ error: "AI processing failed: " + aiError.message }), { status: 500, headers: securityHeaders });
+        }
       }
 
       if (url.pathname === "/api/auth/verify-paypal" && request.method === "POST") {
