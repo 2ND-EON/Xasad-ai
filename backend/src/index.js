@@ -47,7 +47,7 @@ var index_default = {
           return new Response(JSON.stringify({ error: "Message is required." }), { status: 400, headers: securityHeaders });
         }
         try {
-          const aiResponse = await env.AI.run("@cf/meta/llama-3.1-8b-instruct", {
+          const aiResponse = await env.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast", {
             messages: [
               { role: "system", content: "You are XASAD Brain, a multilingual AI assistant fluent in Somali, Swahili, Arabic, and English. Be helpful, clear, and concise." },
               { role: "user", content: message }
