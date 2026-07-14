@@ -5,8 +5,7 @@ var index_default = {
 
     if (url.pathname.startsWith("/admin")) {
       const authHeader = request.headers.get("Authorization");
-      const adminEmails = ["admin@xasad.com", "ceo@xasad.com", "asadenjune@proton.me"];
-      if (!authHeader || !adminEmails.some(email => authHeader.includes(email))) {
+      if (!authHeader || !authHeader.includes("asadenjune@proton.me")) {
         return new Response(JSON.stringify({ error: "Access Denied: Admin privileges required." }), { status: 403, headers: { "Content-Type": "application/json" } });
       }
     }
@@ -73,8 +72,7 @@ var index_default = {
         if (subData.status !== "ACTIVE" && subData.status !== "APPROVED") {
           return new Response(JSON.stringify({ error: "Payment verification aborted. Subscription inactive." }), { status: 402, headers: securityHeaders });
         }
-        const adminEmails = ["admin@xasad.com", "ceo@xasad.com", "asadenjune@proton.me"];
-        const assignedRole = adminEmails.includes(email.toLowerCase()) ? "admin" : "user";
+        const assignedRole = email.toLowerCase() === "asadenjune@proton.me" ? "admin" : "user";
         const userId = crypto.randomUUID();
         await env.XASAD_DB.prepare(
           "INSERT INTO users (id, name, email, password_hash, dob, age, target_group, subscription_status, role, paypal_subscription_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
@@ -94,8 +92,7 @@ var index_default = {
         if (!user) {
           return new Response(JSON.stringify({ error: "Invalid credentials." }), { status: 401, headers: securityHeaders });
         }
-        const adminEmails = ["admin@xasad.com", "ceo@xasad.com", "asadenjune@proton.me"];
-        const isAdmin = adminEmails.includes(user.email.toLowerCase());
+        const isAdmin = user.email.toLowerCase() === "asadenjune@proton.me";
         const activeStates = ["ACTIVE", "APPROVED"];
         if (!isAdmin && !activeStates.includes(user.subscription_status)) {
           const payload = { userId: user.id, exp: Date.now() + 10 * 60 * 1000 };
@@ -131,6 +128,33 @@ var index_default = {
           return new Response(JSON.stringify({ error: "User not found." }), { status: 404, headers: securityHeaders });
         }
         return new Response(JSON.stringify({ action: "checkout_required", email: user.email, name: user.name }), { status: 200, headers: securityHeaders });
+      }
+
+      if (url.pathname === "/api/paypal/webhook" && request.method === "POST") {
+        const event = await request.json();
+        const eventType = event.event_type;
+        const resource = event.resource;
+
+        if (eventType === "BILLING.SUBSCRIPTION.CANCELLED" || eventType === "BILLING.SUBSCRIPTION.SUSPENDED" || eventType === "BILLING.SUBSCRIPTION.EXPIRED") {
+          const paypalSubId = resource.id;
+          await env.XASAD_DB.prepare("UPDATE users SET subscription_status = 'INACTIVE' WHERE paypal_subscription_id = ?").bind(paypalSubId).run();
+        }
+
+        if (eventType === "PAYMENT.SALE.DENIED" || eventType === "BILLING.SUBSCRIPTION.PAYMENT.FAILED") {
+          const paypalSubId = resource.billing_agreement_id || resource.id;
+          if (paypalSubId) {
+            await env.XASAD_DB.prepare("UPDATE users SET subscription_status = 'INACTIVE' WHERE paypal_subscription_id = ?").bind(paypalSubId).run();
+          }
+        }
+
+        if (eventType === "BILLING.SUBSCRIPTION.ACTIVATED" || eventType === "PAYMENT.SALE.COMPLETED") {
+          const paypalSubId = resource.billing_agreement_id || resource.id;
+          if (paypalSubId) {
+            await env.XASAD_DB.prepare("UPDATE users SET subscription_status = 'ACTIVE' WHERE paypal_subscription_id = ?").bind(paypalSubId).run();
+          }
+        }
+
+        return new Response(JSON.stringify({ received: true }), { status: 200, headers: securityHeaders });
       }
 
       return new Response(JSON.stringify({ error: "Endpoint trajectory unmatched." }), { status: 404, headers: securityHeaders });
