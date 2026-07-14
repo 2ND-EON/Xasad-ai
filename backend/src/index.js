@@ -59,6 +59,48 @@ var index_default = {
         }
       }
 
+      if (url.pathname === "/api/chat/stream" && request.method === "POST") {
+        const { prompt, languageMode, useProBigBrain } = await request.json();
+        if (!prompt) {
+          return new Response(JSON.stringify({ error: "Prompt is required." }), { status: 400, headers: securityHeaders });
+        }
+        try {
+          const aiStream = await env.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast", {
+            messages: [
+              { role: "system", content: `You are XASAD Brain, a multilingual AI assistant fluent in Somali, Swahili, Arabic, and English. Respond in ${languageMode || "English"} when appropriate. Be helpful, clear, and concise.` },
+              { role: "user", content: prompt }
+            ],
+            stream: true
+          });
+
+          const decoder = new TextDecoder();
+          const encoder = new TextEncoder();
+          const transformStream = new TransformStream({
+            transform(chunk, controller) {
+              const text = decoder.decode(chunk);
+              const lines = text.split("\n").filter(l => l.startsWith("data: "));
+              for (const line of lines) {
+                const payload = line.replace("data: ", "").trim();
+                if (payload === "[DONE]") continue;
+                try {
+                  const json = JSON.parse(payload);
+                  if (json.response) {
+                    controller.enqueue(encoder.encode(json.response));
+                  }
+                } catch (e) {}
+              }
+            }
+          });
+
+          const plainTextStream = aiStream.pipeThrough(transformStream);
+          return new Response(plainTextStream, {
+            headers: { ...securityHeaders, "Content-Type": "text/plain; charset=utf-8" }
+          });
+        } catch (aiError) {
+          return new Response(JSON.stringify({ error: "AI processing failed: " + aiError.message }), { status: 500, headers: securityHeaders });
+        }
+      }
+
       if (url.pathname === "/api/auth/verify-paypal" && request.method === "POST") {
         const { orderID, planTier, email, name, passwordHash, dob, age, targetGroup } = await request.json();
         const paypalEndpoint = `https://api-m.paypal.com/v1/billing/subscriptions/${orderID}`;
