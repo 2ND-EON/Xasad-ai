@@ -12,14 +12,31 @@ const styles = `
   .flex-container { display: flex; height: 100vh; width: 100vw; }
 
   .sidebar { width: 260px; background: var(--sidebar-dark); border-right: 1px solid var(--border-line); display: flex; flex-direction: column; padding: 12px; transition: transform 0.2s ease; }
-  .sidebar-brand { font-weight: 800; letter-spacing: 2px; padding: 10px 8px 18px 8px; font-size: 15px; }
+  .sidebar-top-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 8px 14px 8px; }
+  .sidebar-brand { font-weight: 800; letter-spacing: 2px; font-size: 15px; }
+  .sidebar-top-icons { display: flex; gap: 4px; }
+  .sidebar-icon-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 6px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .sidebar-icon-btn:hover { background: var(--hover-bg); color: white; }
+
   .sidebar-nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; cursor: pointer; color: var(--text-primary); font-size: 14px; background: none; border: none; width: 100%; text-align: left; }
   .sidebar-nav-item:hover { background: var(--hover-bg); }
   .sidebar-nav-item.active { background: var(--hover-bg); }
+  .sidebar-nav-item.disabled { color: var(--text-muted); cursor: default; }
+  .sidebar-nav-item.disabled:hover { background: none; }
+  .sidebar-nav-row { display: flex; align-items: center; justify-content: space-between; }
+  .sidebar-upgrade-pill { font-size: 11px; background: var(--hover-bg); color: #93c5fd; padding: 3px 9px; border-radius: 20px; font-weight: 600; }
+
   .sidebar-section-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); padding: 16px 10px 6px 10px; }
   .sidebar-history-item { padding: 8px 10px; border-radius: 8px; font-size: 13px; color: var(--text-muted); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sidebar-history-item:hover { background: var(--hover-bg); color: var(--text-primary); }
-  .sidebar-footer { margin-top: auto; padding: 10px 8px; border-top: 1px solid var(--border-line); font-size: 12px; color: var(--text-muted); }
+
+  .sidebar-footer { margin-top: auto; padding: 10px 8px; border-top: 1px solid var(--border-line); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .sidebar-footer-user { display: flex; align-items: center; gap: 10px; min-width: 0; cursor: default; }
+  .sidebar-footer-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--accent-gold); color: black; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+  .sidebar-footer-text { display: flex; flex-direction: column; min-width: 0; }
+  .sidebar-footer-name { font-size: 13px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sidebar-footer-plan { font-size: 11px; color: var(--text-muted); }
+  .sidebar-footer-icons { display: flex; gap: 2px; flex-shrink: 0; }
 
   .new-chat-btn { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--border-line); border-radius: 8px; background: transparent; color: var(--text-primary); font-size: 14px; cursor: pointer; margin-bottom: 8px; }
   .new-chat-btn:hover { background: var(--hover-bg); }
@@ -27,6 +44,8 @@ const styles = `
   .chat-viewport { flex: 1; display: flex; flex-direction: column; background: var(--bg-dark); position: relative; min-width: 0; }
   .topbar { height: 56px; border-bottom: 1px solid var(--border-line); display: flex; align-items: center; justify-content: space-between; padding: 0 18px; }
   .mobile-menu-btn { display: none; background: none; border: none; color: white; font-size: 20px; cursor: pointer; }
+  .share-btn { padding: 7px 16px; background: var(--hover-bg); color: var(--text-primary); border: 1px solid var(--border-line); border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; }
+  .share-btn:hover { background: #2c2c2c; }
 
   .scroll-frame { flex: 1; overflow-y: auto; padding: 30px 20px; }
   .msg-row { max-width: 720px; margin: 0 auto 28px auto; }
@@ -42,10 +61,15 @@ const styles = `
   .send-btn { background: white; color: black; border: none; border-radius: 8px; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
   .send-btn:disabled { opacity: 0.25; cursor: not-allowed; }
 
-  .plus-menu { position: absolute; bottom: 52px; left: 8px; background: var(--card-dark); border: 1px solid var(--border-line); border-radius: 10px; padding: 6px; width: 220px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); z-index: 50; }
-  .plus-menu-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 6px; font-size: 13px; color: var(--text-primary); cursor: pointer; }
+  .plus-menu { position: absolute; bottom: 52px; left: 8px; background: var(--card-dark); border: 1px solid var(--border-line); border-radius: 10px; padding: 6px; width: 240px; box-shadow: 0 8px 24px rgba(0,0,0,0.5); z-index: 50; }
+  .plus-menu-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; border-radius: 6px; font-size: 13px; color: var(--text-primary); cursor: pointer; }
   .plus-menu-item:hover { background: var(--hover-bg); }
   .plus-menu-item.disabled { color: var(--text-muted); cursor: default; }
+  .plus-menu-item.disabled:hover { background: none; }
+  .plus-menu-item-left { display: flex; align-items: center; gap: 10px; }
+  .plus-menu-shortcut { font-size: 11px; color: var(--text-muted); }
+  .plus-menu-divider { height: 1px; background: var(--border-line); margin: 6px 4px; }
+  .plus-menu-check { color: #60a5fa; font-size: 13px; }
 
   .action-btn { padding: 10px 20px; background: var(--text-primary); color: black; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; }
   .action-btn:disabled { opacity: 0.25; cursor: not-allowed; }
@@ -111,6 +135,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sessionToken, setSessionToken] = useState(localStorage.getItem("xasad_session") || "");
   const [userTier, setUserTier] = useState("STANDARD");
+  const [userName, setUserName] = useState("");
   const [showWizard, setShowWizard] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
   const [appLanguage, setAppLanguage] = useState("English");
@@ -126,6 +151,7 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const fileInputRef = useRef(null);
 
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "";
@@ -177,6 +203,7 @@ export default function App() {
       localStorage.setItem("xasad_session", result.token);
       setSessionToken(result.token);
       setUserTier(result.tier);
+      setUserName(regData.name);
       setIsAuthenticated(true);
       setShowWizard(false);
     } catch (err) {
@@ -228,6 +255,8 @@ export default function App() {
     setMessages([]);
     setSidebarOpen(false);
   };
+
+  const userInitial = (userName || "U").trim().charAt(0).toUpperCase();
 
   return (
     <>
@@ -297,22 +326,49 @@ export default function App() {
         )}
 
         <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-          <div className="sidebar-brand">XASAD AI</div>
+          <div className="sidebar-top-row">
+            <div className="sidebar-brand">XASAD AI</div>
+            <div className="sidebar-top-icons">
+              <button className="sidebar-icon-btn" title="Search chats">🔍</button>
+              <button className="sidebar-icon-btn" title="Collapse sidebar" onClick={() => setSidebarOpen(false)}>▤</button>
+            </div>
+          </div>
+
           <button className="new-chat-btn" onClick={startNewChat}>
             <span>＋</span><span>New chat</span>
           </button>
+
           <button className="sidebar-nav-item"><span>💬</span><span>Chats</span></button>
           <button className="sidebar-nav-item"><span>📁</span><span>Projects</span></button>
-          <button className="sidebar-nav-item"><span>🔍</span><span>Search chats</span></button>
-          <div className="sidebar-section-label">Recent</div>
+          <button className="sidebar-nav-item disabled" title="Coming soon"><span>🧩</span><span>Artifacts</span></button>
+          <div className="sidebar-nav-item disabled sidebar-nav-row" title="Coming soon">
+            <span style={{ display: "flex", alignItems: "center", gap: "10px" }}><span>{'</>'}</span><span>Code</span></span>
+            <span className="sidebar-upgrade-pill">Upgrade</span>
+          </div>
+          <button className="sidebar-nav-item"><span>⚙</span><span>Customize</span></button>
+
+          <div className="sidebar-section-label">Products</div>
+          <button className="sidebar-nav-item disabled" title="Coming soon"><span>🎨</span><span>Design</span></button>
+
+          <div className="sidebar-section-label">Recents</div>
           <div style={{ overflowY: "auto", flex: 1 }}>
             {messages.length > 0 && (
               <div className="sidebar-history-item">{messages[0]?.verified_body?.slice(0, 28) || "Current chat"}</div>
             )}
           </div>
+
           <div className="sidebar-footer">
-            <button className="sidebar-nav-item"><span>⚙</span><span>Customize</span></button>
-            {isAuthenticated ? `${userTier} plan — active` : "Not signed in"}
+            <div className="sidebar-footer-user">
+              <div className="sidebar-footer-avatar">{userInitial}</div>
+              <div className="sidebar-footer-text">
+                <span className="sidebar-footer-name">{isAuthenticated ? (userName || "Account") : "Not signed in"}</span>
+                <span className="sidebar-footer-plan">{isAuthenticated ? `${userTier} plan` : "Free plan"}</span>
+              </div>
+            </div>
+            <div className="sidebar-footer-icons">
+              <button className="sidebar-icon-btn" title="Download">⬇</button>
+              <button className="sidebar-icon-btn" title="Expand">⇕</button>
+            </div>
           </div>
         </aside>
 
@@ -324,7 +380,10 @@ export default function App() {
                 {["English", "Spanish", "Swahili", "Hausa", "Arabic", "Somali"].map(lang => <option key={lang} value={lang}>{lang}</option>)}
               </select>
             </div>
-            {!isAuthenticated && <button className="action-btn" style={{background: "var(--accent-gold)"}} onClick={() => { setWizardStep(1); setShowWizard(true); }}>Log In</button>}
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              {messages.length > 0 && <button className="share-btn">Share</button>}
+              {!isAuthenticated && <button className="action-btn" style={{background: "var(--accent-gold)"}} onClick={() => { setWizardStep(1); setShowWizard(true); }}>Log In</button>}
+            </div>
           </header>
 
           <div className="scroll-frame">
@@ -346,9 +405,33 @@ export default function App() {
             <div className="input-shell">
               {plusMenuOpen && (
                 <div className="plus-menu">
-                  <div className="plus-menu-item" onClick={() => { fileInputRef.current?.click(); setPlusMenuOpen(false); }}>📎 Add files or photos</div>
-                  <div className="plus-menu-item disabled">📷 Take a screenshot</div>
-                  <div className="plus-menu-item disabled">📁 Add to project</div>
+                  <div className="plus-menu-item" onClick={() => { fileInputRef.current?.click(); setPlusMenuOpen(false); }}>
+                    <span className="plus-menu-item-left">📎 Add files or photos</span>
+                    <span className="plus-menu-shortcut">⌘U</span>
+                  </div>
+                  <div className="plus-menu-item disabled" title="Coming soon">
+                    <span className="plus-menu-item-left">📷 Take a screenshot</span>
+                  </div>
+                  <div className="plus-menu-item disabled" title="Coming soon">
+                    <span className="plus-menu-item-left">📁 Add to project</span>
+                    <span>›</span>
+                  </div>
+                  <div className="plus-menu-divider" />
+                  <div className="plus-menu-item disabled" title="Coming soon">
+                    <span className="plus-menu-item-left">🧠 Skills</span>
+                    <span>›</span>
+                  </div>
+                  <div className="plus-menu-item disabled" title="Coming soon">
+                    <span className="plus-menu-item-left">🔗 Add connector</span>
+                    <span>›</span>
+                  </div>
+                  <div className="plus-menu-item disabled" title="Coming soon">
+                    <span className="plus-menu-item-left">🧷 Add plugins...</span>
+                  </div>
+                  <div className="plus-menu-item" onClick={() => setWebSearchEnabled(!webSearchEnabled)}>
+                    <span className="plus-menu-item-left">🌐 Web search</span>
+                    {webSearchEnabled && <span className="plus-menu-check">✓</span>}
+                  </div>
                 </div>
               )}
               <input type="file" ref={fileInputRef} style={{ display: "none" }} />
@@ -362,7 +445,10 @@ export default function App() {
               />
               <div className="input-toolbar">
                 <button className="icon-btn" onClick={() => setPlusMenuOpen(!plusMenuOpen)}>＋</button>
-                <button className="send-btn" disabled={!currentInput.trim() || isGenerating} onClick={executeChatMessageStreaming}>➔</button>
+                <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                  <button className="icon-btn" title="Voice input">🎙</button>
+                  <button className="send-btn" disabled={!currentInput.trim() || isGenerating} onClick={executeChatMessageStreaming}>➔</button>
+                </div>
               </div>
             </div>
           </div>
